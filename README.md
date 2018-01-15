@@ -1,2 +1,2 @@
-# HelloWorld
-A repository to test features in Github. Does not contain actual programs
+# Miscellaneous
+A repository to store various programs and snippets of code I have made over the years. See other README files inside subdirectories for more descriptions
