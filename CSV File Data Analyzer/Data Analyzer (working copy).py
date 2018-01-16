@@ -1,7 +1,8 @@
 import csv
+import math
 import turtle
 import time
-import copy
+#import copy
 
 class SurveyEntry:
     courseDictKeyStr = ["WhyChoseCourse", "LikeMath", "LikeCourse", "CourseDifficulty", "WhenStudy", "LengthStudy", "TimeSpent", "Grade"]
@@ -204,19 +205,31 @@ class DataAnalyzer:
         allAnswers.sort()
         # Note that allAnswers is accessed with indices from 0 to actualN-1
         if actualN % 2 == 0:  #If actualN is even:
-            median = (allAnswers[actualN // 2 - 1] + allAnswers[actualN // 2]) /2  #Median is average of middle two values
+            median = simplifyNumber( (allAnswers[actualN // 2 - 1] + allAnswers[actualN // 2]) /2)  #Median is average of middle two values
         else:  #If actualN is odd:
             median = allAnswers[actualN // 2]  #Median is the center value
-        #Find Q1, Q3
-        
+        #Find Q1, Q3 by finding where Q1 and Q3 lie, and then averaging the 
+        q1 = simplifyNumber( (allAnswers[math.floor(25/100*(actualN+1)) - 1] + allAnswers[math.ceil(25/100*(actualN+1)) - 1]) / 2)
+        q3 = simplifyNumber( (allAnswers[math.floor(75/100*(actualN+1)) - 1] + allAnswers[math.ceil(75/100*(actualN+1)) - 1]) / 2)
         #Find IQR (interquartile range)
-        
-        #Find mean
+        iqr = q3-q1
+        #Find range
+        maxAnswer = allAnswers[actualN-1]
+        minAnswer = allAnswers[0]
+        answerRange = maxAnswer - minAnswer
+        # Five number summary
+        fiveNumberSummary = [minAnswer, q1, median, q3, maxAnswer]
+        #Find mean and standard deviation
         try:
             mean = round(sumAllAnswers / actualN,4)
+            sumDeviationSquared = 0
+            for x in allAnswers:
+                sumDeviationSquared += (x - mean)**2
+            stdDev = round( (sumDeviationSquared/(actualN - 1))**0.5,  4)
         except:
             mean = "N/A due to data type"
-        print("{0}: n={1}, mean={2}, median={3}, mode={4}, answer distribution={5}".format(columnNameStr,actualN,mean,median,modeList,answerFreqs))
+            stdDev = "N/A due to data type"
+        print("{0}: n={1}, mean={2}, median={3}, mode={4}, stdDev={6}, fiveNumberSummary={7}, IQR={8}, answer distribution={5}".format(columnNameStr,actualN,mean,median,modeList,answerFreqs,stdDev,fiveNumberSummary,iqr))
         
         #Display info on screen with turtle
         """self.turtle.setpos(x,y)
@@ -329,6 +342,15 @@ def returnDataFieldIndiceDictionary(lineList):
     return indexDict,enabledColumns
     """Find a way to determine which set of things is from which grade"""
 
+def simplifyNumber(number):
+    """If number is a float representation of an integer, return it upgraded to int.
+        Else return number unchanged
+        Assumes parameter number is an int or float"""
+    if (number // 1) != number:  #Is this method valid?
+        #Then number is a decimal
+        return number
+    else:  #Then number is an int
+        return int(number)
 
 def returnFirstNumber(answerStr):
     """Returns an int or float, depending on the number"""
@@ -339,11 +361,7 @@ def returnFirstNumber(answerStr):
         else:
             break
     output = float(numStr)
-    if (output // 1) != output:
-        #Then output is a decimal
-        return output
-    else:  #Then output is an int
-        return int(output)
+    return simplifyNumber(output)
 
 
 if __name__ == "__main__":
