@@ -110,8 +110,8 @@ class DataAnalyzer:
                                      "gr11MCRWhenStudy":31, "gr11MCRLengthStudy":32,  "gr11MCRTimeSpent":33, "gr11MCRGrade":34, \
                                      "gr12MHFWhyChoseCourse":35, "gr12MHFLikeMath":36, "gr12MHFLikeCourse":37, "gr12MHFCourseDifficulty":38, \
                                      "gr12MHFWhenStudy":39, "gr12MHFLengthStudy":40,  "gr12MHFTimeSpent":41, "gr12MHFGrade":42, \
-                                     "gr12MHFWhyChoseCourse":43, "gr12MHFLikeMath":44, "gr12MHFLikeCourse":45, "gr12MHFCourseDifficulty":46, \
-                                     "gr12MHFWhenStudy":47, "gr12MHFLengthStudy":48,  "gr12MHFTimeSpent":49, "gr12MHFGrade":50, 
+                                     "gr12MDMWhyChoseCourse":43, "gr12MDMLikeMath":44, "gr12MDMLikeCourse":45, "gr12MDMCourseDifficulty":46, \
+                                     "gr12MDMWhenStudy":47, "gr12MDMLengthStudy":48,  "gr12MDMTimeSpent":49, "gr12MDMGrade":50, 
                                      "incentiveChoice":51, "hardestThingAboutMath":52}
     
     
@@ -122,6 +122,7 @@ class DataAnalyzer:
         #Set up screen object and turtle object used for displaying graphs
         self.wn = turtleScreenObj
         self.wn.setworldcoordinates(-50,-50,self.wn.window_width()-50,self.wn.window_height()-50)
+        self.wn.colormode(255)
         self.turtle = turtleTurtleObj
         self.turtle.shape("circle")
         self.turtle.shapesize(0.5)
@@ -173,6 +174,7 @@ class DataAnalyzer:
         answerFreqs = {}
         maxFreq = 0
         modeList = []
+        skipEntry = False
         
         columnIndex = self.surveyEntryAttributeColumnIndexDict[columnNameStr]
         if columnIndex == None:
@@ -183,6 +185,15 @@ class DataAnalyzer:
             if answer == None:
                 continue
             else:
+                for conditionKeyStr,desiredState in dataInclusionList:
+                    colIndex = self.surveyEntryAttributeColumnIndexDict.get(conditionKeyStr)
+                    if colIndex == None:  #conditionKeyStr is not a key in the dict
+                        continue
+                    if self.data[entry][colIndex] != desiredState:
+                        skipEntry = True
+                if skipEntry:
+                    skipEntry = False
+                    continue
                 actualN += 1
                 if answer in answerFreqs.keys():
                     answerFreqs[answer] += 1  #Increment already-created entry
@@ -201,24 +212,34 @@ class DataAnalyzer:
                 modeList = [key]
             elif value == maxFreq:  #Item with same frequency found as highest frequency, add this mode to modeList
                 modeList.append(key)
-        #Find median
-        allAnswers.sort()
-        # Note that allAnswers is accessed with indices from 0 to actualN-1
-        if actualN % 2 == 0:  #If actualN is even:
-            median = simplifyNumber( (allAnswers[actualN // 2 - 1] + allAnswers[actualN // 2]) /2)  #Median is average of middle two values
-        else:  #If actualN is odd:
-            median = allAnswers[actualN // 2]  #Median is the center value
-        #Find Q1, Q3 by finding where Q1 and Q3 lie, and then averaging the 
-        q1 = simplifyNumber( (allAnswers[math.floor(25/100*(actualN+1)) - 1] + allAnswers[math.ceil(25/100*(actualN+1)) - 1]) / 2)
-        q3 = simplifyNumber( (allAnswers[math.floor(75/100*(actualN+1)) - 1] + allAnswers[math.ceil(75/100*(actualN+1)) - 1]) / 2)
-        #Find IQR (interquartile range)
-        iqr = q3-q1
-        #Find range
-        maxAnswer = allAnswers[actualN-1]
-        minAnswer = allAnswers[0]
-        answerRange = maxAnswer - minAnswer
-        # Five number summary
-        fiveNumberSummary = [minAnswer, q1, median, q3, maxAnswer]
+        try:
+            #Find median
+            allAnswers.sort()
+            # Note that allAnswers is accessed with indices from 0 to actualN-1
+            if actualN % 2 == 0:  #If actualN is even:
+                median = simplifyNumber( (allAnswers[actualN // 2 - 1] + allAnswers[actualN // 2]) /2)  #Median is average of middle two values
+            else:  #If actualN is odd:
+                median = allAnswers[actualN // 2]  #Median is the center value
+            #Find Q1, Q3 by finding where Q1 and Q3 lie, and then averaging the 
+            q1 = simplifyNumber( (allAnswers[math.floor(25/100*(actualN+1)) - 1] + allAnswers[math.ceil(25/100*(actualN+1)) - 1]) / 2)
+            q3 = simplifyNumber( (allAnswers[math.floor(75/100*(actualN+1)) - 1] + allAnswers[math.ceil(75/100*(actualN+1)) - 1]) / 2)
+            #Find IQR (interquartile range)
+            iqr = q3-q1
+            #Find range
+            maxAnswer = allAnswers[actualN-1]
+            minAnswer = allAnswers[0]
+            answerRange = maxAnswer - minAnswer
+            # Five number summary
+            fiveNumberSummary = [minAnswer, q1, median, q3, maxAnswer]
+        except:
+            median = "N/A due to data type"
+            q1 = "N/A due to data type"
+            q3 = "N/A due to data type"
+            iqr = "N/A due to data type"
+            maxAnswer = "N/A due to data type"
+            minAnswer = "N/A due to data type"
+            answerRange = "N/A due to data type"
+            fiveNumberSummary = "N/A due to data type"
         #Find mean and standard deviation
         try:
             mean = round(sumAllAnswers / actualN,4)
@@ -324,6 +345,57 @@ class DataAnalyzer:
         self.turtle.setpos(0,-30)
         self.turtle.write("n = {0}, r = {1:.4f}".format(n,r), move=True,align="left",font=("Arial",26,"bold"))
         print("n = {0}, r = {1:.7f}".format(n,r))
+         
+    def testProgram(self):
+        for courseName in ["9MPM", "10MPM", "11MCR", "12MHF", "12MDM"]:
+            for itemStr in ["WhenStudy", "LengthStudy", "TimeSpent"]:
+                xColumnIndex = self.surveyEntryAttributeColumnIndexDict["gr" + courseName + itemStr]
+                yColumnIndex = self.surveyEntryAttributeColumnIndexDict["gr" + courseName + "Grade"]
+                n,r = self.returnCorrelationCoefficient(xColumnIndex, yColumnIndex)
+                print("gr{2} {3} vs Grades: n = {0}, r = {1:.4f}".format(n,r,courseName,itemStr))
+    
+    
+    def yearOnYearAnalysis(self, itemStr):
+        scaleFactor = (self.wn.window_width() * 0.75) // 10  #Assuming that window_width is smaller than window_height
+
+        #Draw axes
+        self.turtle.setpos(0,0)
+        self.turtle.pendown()
+        self.turtle.setpos(0,(10+1)*scaleFactor)
+        self.turtle.penup()
+        self.turtle.setpos(0,0)
+        self.turtle.pendown()
+        self.turtle.setpos((10+1)*scaleFactor,0)
+        self.turtle.penup()
+        self.turtle.setpos(0,-30)
+        self.turtle.write(itemStr, move=True,align="left",font=("Arial",26,"bold"))
+        #skipEntry = False
+        
+        lineColor = [(255,0,0),(0,255,0),(0,0,255),(255,255,0),(0,255,255),(255,0,255)] #Rotating turtle colors
+        lineColorIndex = 0
+        
+        columnIndices = []
+        for course in ["9MPM", "10MPM", "11MCR", "12MHF", "12MDM"]:
+            columnIndices.append(self.surveyEntryAttributeColumnIndexDict["gr"+course+itemStr])
+        
+        for entry in range(len(self.data)):
+            self.turtle.pencolor(lineColor[lineColorIndex])
+            self.turtle.fillcolor(lineColor[lineColorIndex])
+            if lineColorIndex >= (len(lineColor) - 1):
+                lineColorIndex = 0
+            else:
+                lineColorIndex += 1
+                
+            for x,columnIndex in enumerate(columnIndices):
+                answer = self.data[entry][columnIndex]
+                if answer == None:
+                    self.turtle.penup()
+                    continue
+                self.turtle.setpos(x*scaleFactor,answer*scaleFactor)
+                self.turtle.stamp()
+                self.turtle.pendown()
+            self.turtle.penup()
+            time.sleep(0.3)
             
     def clearScreen(self):
         self.turtle.clear()
@@ -434,9 +506,23 @@ if __name__ == "__main__":
     screen = turtle.Screen()
     turtle = turtle.Turtle()
     surveyDataAnalyzer = DataAnalyzer(surveyEntriesList,screen,turtle)
-    for columnNameStr in ["parentsExpectWellMath","parentsThinkMathImportant","friendsLikeMath","friendsDoWellMath","iLookForwardMathClass","iAnxiousMath","iWorryMathMark"]:
-        surveyDataAnalyzer.columnBreakdown(columnNameStr)
+    
+    #for columnNameStr in ["parentsExpectWellMath","parentsThinkMathImportant","friendsLikeMath","friendsDoWellMath","iLookForwardMathClass","iAnxiousMath","iWorryMathMark"]:
+    #    surveyDataAnalyzer.columnBreakdown(columnNameStr)
+    
+    for columnName in ["iAnxiousMath", "iWorryMathMark"]:
+        for gender in ["M","F"]:
+            surveyDataAnalyzer.columnBreakdown(columnName, [("gender",gender)])
 
+    surveyDataAnalyzer.testProgram()
+
+    for itemStr in ["LikeMath","LikeCourse","CourseDifficulty","WhenStudy","LengthStudy","TimeSpent","Grade"]:
+        surveyDataAnalyzer.yearOnYearAnalysis(itemStr)
+        time.sleep(2)
+        surveyDataAnalyzer.clearScreen()
+                             
+    
+    """
     #for num in [0,1,2,3,4]:
     for num in [2]:  #Gr 11 math
         for xColumn, yColumn in [(14+num*8,13+num*8),(14+num*8,12+num*8),(13+num*8,12+num*8)]:
@@ -445,6 +531,6 @@ if __name__ == "__main__":
             surveyDataAnalyzer.clearScreen()
             surveyDataAnalyzer.displayScatterPlot(xColumn, yColumn,[("currentGrade",11)])
             time.sleep(2)
-            surveyDataAnalyzer.clearScreen()
+            surveyDataAnalyzer.clearScreen()"""
     
     screen.bye()
