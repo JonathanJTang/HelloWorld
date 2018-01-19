@@ -250,12 +250,102 @@ class DataAnalyzer:
         except:
             mean = "N/A due to data type"
             stdDev = "N/A due to data type"
+        
+        if dataInclusionList != []:
+            print(dataInclusionList,end=" ")
         print("{0}: n={1}, mean={2}, median={3}, mode={4}, stdDev={6}, fiveNumberSummary={7}, IQR={8}, answer distribution={5}".format(columnNameStr,actualN,mean,median,modeList,answerFreqs,stdDev,fiveNumberSummary,iqr))
         
         #Display info on screen with turtle
         """self.turtle.setpos(x,y)
         self.turtle.write()"""
-      
+    
+    def columnBreakdownV2(self,dataInclusionList=[]):
+        """Calculates and prints mean, median, and mode"""
+        actualN = 0
+        sumAllAnswers = 0
+        allAnswers = []
+        answerFreqs = {}
+        maxFreq = 0
+        modeList = []
+        skipEntry = False
+        
+        answerList = []
+        multiList = [0,2,10,12,17,5,2]
+        #multiList = [1,2,2,4,15,7,17]
+        for i,num in enumerate(multiList):
+            for n in range(num):
+                answerList.append(i+2)
+            
+            
+        
+        for entry in answerList:
+            answer = entry
+            if answer == None:
+                continue
+            else:
+                
+                actualN += 1
+                if answer in answerFreqs.keys():
+                    answerFreqs[answer] += 1  #Increment already-created entry
+                else:
+                    answerFreqs[answer] = 1  #Create new entry
+                try:
+                    sumAllAnswers += answer
+                except:  #If answer is not a numeric type, then mean won't work
+                    pass
+                allAnswers.append(answer)
+        
+        #Find mode
+        for key,value in answerFreqs.items():
+            if value > maxFreq:  #Item with higher frequency found, replace all previous "modes" in modeList
+                maxFreq = value
+                modeList = [key]
+            elif value == maxFreq:  #Item with same frequency found as highest frequency, add this mode to modeList
+                modeList.append(key)
+        try:
+            #Find median
+            allAnswers.sort()
+            # Note that allAnswers is accessed with indices from 0 to actualN-1
+            if actualN % 2 == 0:  #If actualN is even:
+                median = simplifyNumber( (allAnswers[actualN // 2 - 1] + allAnswers[actualN // 2]) /2)  #Median is average of middle two values
+            else:  #If actualN is odd:
+                median = allAnswers[actualN // 2]  #Median is the center value
+            #Find Q1, Q3 by finding where Q1 and Q3 lie, and then averaging the 
+            q1 = simplifyNumber( (allAnswers[math.floor(25/100*(actualN+1)) - 1] + allAnswers[math.ceil(25/100*(actualN+1)) - 1]) / 2)
+            q3 = simplifyNumber( (allAnswers[math.floor(75/100*(actualN+1)) - 1] + allAnswers[math.ceil(75/100*(actualN+1)) - 1]) / 2)
+            #Find IQR (interquartile range)
+            iqr = q3-q1
+            #Find range
+            maxAnswer = allAnswers[actualN-1]
+            minAnswer = allAnswers[0]
+            answerRange = maxAnswer - minAnswer
+            # Five number summary
+            fiveNumberSummary = [minAnswer, q1, median, q3, maxAnswer]
+        except:
+            median = "N/A due to data type"
+            q1 = "N/A due to data type"
+            q3 = "N/A due to data type"
+            iqr = "N/A due to data type"
+            maxAnswer = "N/A due to data type"
+            minAnswer = "N/A due to data type"
+            answerRange = "N/A due to data type"
+            fiveNumberSummary = "N/A due to data type"
+        #Find mean and standard deviation
+        try:
+            mean = round(sumAllAnswers / actualN,4)
+            sumDeviationSquared = 0
+            for x in allAnswers:
+                sumDeviationSquared += (x - mean)**2
+            stdDev = round( (sumDeviationSquared/(actualN - 1))**0.5,  4)
+        except:
+            mean = "N/A due to data type"
+            stdDev = "N/A due to data type"
+        
+        if dataInclusionList != []:
+            print(dataInclusionList,end=" ")
+        columnNameStr = "Combined Parent Score"
+        print("{0}: n={1}, mean={2}, median={3}, mode={4}, stdDev={6}, fiveNumberSummary={7}, IQR={8}, answer distribution={5}".format(columnNameStr,actualN,mean,median,modeList,answerFreqs,stdDev,fiveNumberSummary,iqr))
+          
     
     def returnCorrelationCoefficient(self, xColumnIndex, yColumnIndex, dataInclusionList=[]):
         """dataInclusionList is a list of conditions that need to be
@@ -271,6 +361,44 @@ class DataAnalyzer:
         for entry in range(len(self.data)):
             x = self.data[entry][xColumnIndex]
             y = self.data[entry][yColumnIndex]
+            if x == None or y == None:
+                continue
+            for conditionKeyStr,desiredState in dataInclusionList:
+                columnIndex = self.surveyEntryAttributeColumnIndexDict.get(conditionKeyStr)
+                if columnIndex == None:  #conditionKeyStr is not a key in the dict
+                    continue
+                if self.data[entry][columnIndex] != desiredState:
+                    skipEntry = True
+            if skipEntry:
+                skipEntry = False
+                continue
+            actualN += 1
+            sumX += x
+            sumY += y
+            sumXY += x*y
+            sumXSquared += x**2
+            sumYSquared += y**2
+            
+        r = (actualN*sumXY - sumX*sumY) / (( (actualN*sumXSquared - sumX**2)*(actualN*sumYSquared - sumY**2) )**0.5)
+        return actualN,r
+    
+    def returnCorrelationCoefficientListParameter(self, xColumnList, yColumnList, dataInclusionList=[]):
+        """dataInclusionList is a list of conditions that need to be
+            for entries to be included in the data analysis. The list
+            contains (key,desiredState) tuples where key is in self.a"""
+        actualN = 0  #It's not len(self.data) as some entries could be invalid
+        sumX = 0.0
+        sumY = 0.0
+        sumXY = 0.0
+        sumXSquared = 0.0
+        sumYSquared = 0.0
+        skipEntry = False
+        if len(xColumnList) != len(yColumnList):
+            raise ValueError("Length of parameter xColumnList must have the same length as parameter yColumnList")
+        
+        for entry in range(len(xColumnList)):
+            x = xColumnList[entry]
+            y = yColumnList[entry]
             if x == None or y == None:
                 continue
             for conditionKeyStr,desiredState in dataInclusionList:
@@ -345,14 +473,272 @@ class DataAnalyzer:
         self.turtle.setpos(0,-30)
         self.turtle.write("n = {0}, r = {1:.4f}".format(n,r), move=True,align="left",font=("Arial",26,"bold"))
         print("n = {0}, r = {1:.7f}".format(n,r))
+     
+    def testSubjectiveNorms(self):
+        output = {}
+        
+
+        for xColumnName,yColumnName in [("friendsLikeMath","friendsDoWellMath"),("parentsExpectWellMath","parentsThinkMathImportant")]:
+            for num in range(2,9):
+                output[num] = 0
+            
+            xColumnIndex = self.surveyEntryAttributeColumnIndexDict[xColumnName]
+            yColumnIndex = self.surveyEntryAttributeColumnIndexDict[yColumnName]
+            for entry in range(len(self.data)):
+                x = self.data[entry][xColumnIndex]
+                y = self.data[entry][yColumnIndex]
+                if x == None or y == None:
+                    continue
+                output[x+y] += 1
+            
+            print("Output is (x,y is {0},{1}):".format(xColumnName,yColumnName))
+            for num in range(2,9):
+                print("{0}: {1}".format(num,output[num]))
+                
+    def testMathAnxiety(self):
+        output = {}
+        for i in range(1,5):
+            for j in range(1,5):
+                output[(i,j)] = 0
+        xColumnIndex = self.surveyEntryAttributeColumnIndexDict["iAnxiousMath"]
+        yColumnIndex = self.surveyEntryAttributeColumnIndexDict["iWorryMathMark"]
+        for entry in range(len(self.data)):
+            x = self.data[entry][xColumnIndex]
+            y = self.data[entry][yColumnIndex]
+            if x == None or y == None:
+                continue
+            output[(x,y)] += 1
+        
+        print("Output is (x,y is {0},{1}):".format("iAnxiousMath","iWorryMathMark"))
+        for i in range(1,5):
+            for j in range(1,5):
+                print("({0},{1}): {2}".format(i,j,output[(i,j)]))
+                
+    def testCourseDiffEnjoymentByGender(self):
+        genderColumnIndex = self.surveyEntryAttributeColumnIndexDict["gender"]
+        for courseName in ["9MPM", "10MPM", "11MCR", "12MHF", "12MDM"]:
+            xColumnIndex = self.surveyEntryAttributeColumnIndexDict["gr"+courseName+"CourseDifficulty"] 
+            yColumnIndex = self.surveyEntryAttributeColumnIndexDict["gr"+courseName+"LikeCourse"]
+
+            dataInclusionList = []
+            printedValues = []
+            updateFrequency = 10
+            currentTimeElapsed = 0
+            self.wn.tracer(updateFrequency,delay=1)
+            scaleFactor = (self.wn.window_width() * 0.75) // 10 // 2  #Assuming that window_width is smaller than window_height
+            #Draw axes
+            self.turtle.setpos(0,0)
+            self.turtle.pendown()
+            self.turtle.setpos(0,(10+1)*scaleFactor)
+            self.turtle.penup()
+            self.turtle.setpos(0,0)
+            self.turtle.pendown()
+            self.turtle.setpos((10+1)*scaleFactor,0)
+            self.turtle.penup()
+            
+            graphTwoBaseX = (10+1)*scaleFactor+20
+            self.turtle.setpos(graphTwoBaseX,0)
+            self.turtle.pendown()
+            self.turtle.setpos(graphTwoBaseX,(10+1)*scaleFactor)
+            self.turtle.penup()
+            self.turtle.setpos(graphTwoBaseX,0)
+            self.turtle.pendown()
+            self.turtle.setpos(graphTwoBaseX + (10+1)*scaleFactor,0)
+            self.turtle.penup()
+            
+            #Draw the dots
+            maleColumnX = []
+            maleColumnY = []
+            femaleColumnX = []
+            femaleColumnY = []
+            for entry in range(len(self.data)):
+                x = self.data[entry][xColumnIndex]
+                y = self.data[entry][yColumnIndex]
+                if x == None or y == None:
+                    continue
+                currentEntryGender = self.data[entry][genderColumnIndex]
+                if currentEntryGender == "M":
+                    maleColumnX.append(x)
+                    maleColumnY.append(y)
+                    #Scale x and y to numbers that can be displayed on the screen
+                    xCoord = x*scaleFactor
+                    yCoord = y*scaleFactor
+                else:
+                    femaleColumnX.append(x)
+                    femaleColumnY.append(y)
+                    xCoord = graphTwoBaseX + x*scaleFactor
+                    yCoord = y*scaleFactor
+                printedValues.append((x,y))
+                t0 = time.perf_counter()
+                self.turtle.setpos(xCoord,yCoord)
+                self.turtle.stamp()
+                t1 = time.perf_counter()
+                currentTimeElapsed += (t1-t0) #Everything involving time here seems like a lot of calculations, but the program apparently handles it in a reasonable amount of time 
+                if currentTimeElapsed > 0.5: #more than 0.5 seconds
+                    updateFrequency += 5 #update after more number of frames have passed
+                    self.wn.tracer(updateFrequency,delay=1)
+                    currentTimeElapsed = 0
+                    
+            print(printedValues)
+            n,r = self.returnCorrelationCoefficientListParameter(maleColumnX, maleColumnY)
+            self.turtle.setpos(0,-30)
+            self.turtle.write("n = {0}, r = {1:.4f}".format(n,r), move=True,align="left",font=("Arial",26,"bold"))
+            print(courseName,"Male: n = {0}, r = {1:.4f}".format(n,r))
+            n,r = self.returnCorrelationCoefficientListParameter(femaleColumnX, femaleColumnY)
+            self.turtle.setpos(graphTwoBaseX,-30)
+            self.turtle.write("n = {0}, r = {1:.4f}".format(n,r), move=True,align="left",font=("Arial",26,"bold"))
+            print(courseName,"Female: n = {0}, r = {1:.4f}".format(n,r))
+            time.sleep(1.5)
+            self.clearScreen()
+     
          
-    def testProgram(self):
+    def testStudyHabitsGrades(self):
         for courseName in ["9MPM", "10MPM", "11MCR", "12MHF", "12MDM"]:
             for itemStr in ["WhenStudy", "LengthStudy", "TimeSpent"]:
                 xColumnIndex = self.surveyEntryAttributeColumnIndexDict["gr" + courseName + itemStr]
                 yColumnIndex = self.surveyEntryAttributeColumnIndexDict["gr" + courseName + "Grade"]
                 n,r = self.returnCorrelationCoefficient(xColumnIndex, yColumnIndex)
                 print("gr{2} {3} vs Grades: n = {0}, r = {1:.4f}".format(n,r,courseName,itemStr))
+    
+    def testYearOnYearVariation(self,itemStr):
+        courses = ["9MPM", "10MPM", "11MCR", "12MHF"]
+        
+        for i in range(1,len(courses)):
+            oldCourseColumnIndex = self.surveyEntryAttributeColumnIndexDict["gr"+courses[i-1]+itemStr]
+            newCourseColumnIndex = self.surveyEntryAttributeColumnIndexDict["gr"+courses[i]+itemStr]
+            
+            actualN = 0
+            
+            ratios = []
+            sumAllRatios = 0
+            answerFreqsRatios = {}
+            maxFreqRatios = 0
+            modeListRatios = []
+            
+            deltas = []
+            sumAllDeltas = 0
+            answerFreqsDeltas = {}
+            maxFreqDeltas = 0
+            modeListDeltas = []
+        
+            for entry in range(len(self.data)):
+                oldAnswer = self.data[entry][oldCourseColumnIndex]
+                newAnswer = self.data[entry][newCourseColumnIndex]
+                if oldAnswer == None or newAnswer == None:
+                    continue
+                
+                actualN += 1
+                
+                newRatio = round(newAnswer/oldAnswer,4)
+                sumAllRatios += newRatio
+                if newRatio in answerFreqsRatios.keys():
+                    answerFreqsRatios[newRatio] += 1  #Increment already-created entry
+                else:
+                    answerFreqsRatios[newRatio] = 1  #Create new entry
+                ratios.append(newRatio)
+                
+                newDelta = newAnswer-oldAnswer
+                sumAllDeltas += newDelta
+                if newDelta in answerFreqsDeltas.keys():
+                    answerFreqsDeltas[newDelta] += 1  #Increment already-created entry
+                else:
+                    answerFreqsDeltas[newDelta] = 1  #Create new entry
+                deltas.append(newDelta)
+                                
+            print("{0}: from {1} to {2}".format(itemStr,courses[i-1],courses[i]))
+            #Code copied from self.columnBreakdown
+            #Find mode
+            for key,value in answerFreqsRatios.items():
+                if value > maxFreqRatios:  #Item with higher frequency found, replace all previous "modes" in modeList
+                    maxFreqRatios = value
+                    modeListRatios = [key]
+                elif value == maxFreqRatios:  #Item with same frequency found as highest frequency, add this mode to modeList
+                    modeListRatios.append(key)
+            try:
+                #Find median
+                ratios.sort()
+                if actualN % 2 == 0:  #If actualN is even:
+                    median = simplifyNumber( (ratios[actualN // 2 - 1] + ratios[actualN // 2]) /2)  #Median is average of middle two values
+                else:  #If actualN is odd:
+                    median = ratios[actualN // 2]  #Median is the center value
+                #Find Q1, Q3 by finding where Q1 and Q3 lie, and then averaging the 
+                q1 = simplifyNumber( (ratios[math.floor(25/100*(actualN+1)) - 1] + ratios[math.ceil(25/100*(actualN+1)) - 1]) / 2)
+                q3 = simplifyNumber( (ratios[math.floor(75/100*(actualN+1)) - 1] + ratios[math.ceil(75/100*(actualN+1)) - 1]) / 2)
+                #Find IQR (interquartile range)
+                iqr = q3-q1
+                #Find range
+                maxAnswer = ratios[actualN-1]
+                minAnswer = ratios[0]
+                answerRange = maxAnswer - minAnswer
+                # Five number summary
+                fiveNumberSummary = [minAnswer, q1, median, q3, maxAnswer]
+            except:
+                median = "N/A due to data type"
+                q1 = "N/A due to data type"
+                q3 = "N/A due to data type"
+                iqr = "N/A due to data type"
+                maxAnswer = "N/A due to data type"
+                minAnswer = "N/A due to data type"
+                answerRange = "N/A due to data type"
+                fiveNumberSummary = "N/A due to data type"
+            #Find mean and standard deviation
+            try:
+                mean = round(sumAllRatios / actualN,4)
+                sumDeviationSquared = 0
+                for x in ratios:
+                    sumDeviationSquared += (x - mean)**2
+                stdDev = round( (sumDeviationSquared/(actualN - 1))**0.5,  4)
+            except:
+                mean = "N/A due to data type"
+                stdDev = "N/A due to data type"
+            print("n={0}, mean={1}, median={2}, mode={3}, stdDev={4}, fiveNumberSummary={5}, IQR={6}, answer distribution={7}".format(actualN,mean,median,modeListRatios,stdDev,fiveNumberSummary,iqr,answerFreqsRatios))
+            
+            #Find mode
+            for key,value in answerFreqsDeltas.items():
+                if value > maxFreqDeltas:  #Item with higher frequency found, replace all previous "modes" in modeList
+                    maxFreqDeltas = value
+                    modeListDeltas = [key]
+                elif value == maxFreqRatios:  #Item with same frequency found as highest frequency, add this mode to modeList
+                    modeListDeltas.append(key)
+            try:
+                #Find median
+                deltas.sort()
+                if actualN % 2 == 0:  #If actualN is even:
+                    median = simplifyNumber( (deltas[actualN // 2 - 1] + deltas[actualN // 2]) /2)  #Median is average of middle two values
+                else:  #If actualN is odd:
+                    median = deltas[actualN // 2]  #Median is the center value
+                #Find Q1, Q3 by finding where Q1 and Q3 lie, and then averaging the 
+                q1 = simplifyNumber( (deltas[math.floor(25/100*(actualN+1)) - 1] + deltas[math.ceil(25/100*(actualN+1)) - 1]) / 2)
+                q3 = simplifyNumber( (deltas[math.floor(75/100*(actualN+1)) - 1] + deltas[math.ceil(75/100*(actualN+1)) - 1]) / 2)
+                #Find IQR (interquartile range)
+                iqr = q3-q1
+                #Find range
+                maxAnswer = deltas[actualN-1]
+                minAnswer = deltas[0]
+                answerRange = maxAnswer - minAnswer
+                # Five number summary
+                fiveNumberSummary = [minAnswer, q1, median, q3, maxAnswer]
+            except:
+                median = "N/A due to data type"
+                q1 = "N/A due to data type"
+                q3 = "N/A due to data type"
+                iqr = "N/A due to data type"
+                maxAnswer = "N/A due to data type"
+                minAnswer = "N/A due to data type"
+                answerRange = "N/A due to data type"
+                fiveNumberSummary = "N/A due to data type"
+            #Find mean and standard deviation
+            try:
+                mean = round(sumAllDeltas / actualN,4)
+                sumDeviationSquared = 0
+                for x in deltas:
+                    sumDeviationSquared += (x - mean)**2
+                stdDev = round( (sumDeviationSquared/(actualN - 1))**0.5,  4)
+            except:
+                mean = "N/A due to data type"
+                stdDev = "N/A due to data type"
+            print("n={0}, mean={1}, median={2}, mode={3}, stdDev={4}, fiveNumberSummary={5}, IQR={6}, answer distribution={7}".format(actualN,mean,median,modeListDeltas,stdDev,fiveNumberSummary,iqr,answerFreqsDeltas))
+
     
     
     def yearOnYearAnalysis(self, itemStr):
@@ -378,7 +764,9 @@ class DataAnalyzer:
         for course in ["9MPM", "10MPM", "11MCR", "12MHF", "12MDM"]:
             columnIndices.append(self.surveyEntryAttributeColumnIndexDict["gr"+course+itemStr])
         
+        dataSet = []
         for entry in range(len(self.data)):
+            entryAnswerList = []
             self.turtle.pencolor(lineColor[lineColorIndex])
             self.turtle.fillcolor(lineColor[lineColorIndex])
             if lineColorIndex >= (len(lineColor) - 1):
@@ -388,14 +776,19 @@ class DataAnalyzer:
                 
             for x,columnIndex in enumerate(columnIndices):
                 answer = self.data[entry][columnIndex]
+                entryAnswerList.append(answer)
                 if answer == None:
                     self.turtle.penup()
                     continue
                 self.turtle.setpos(x*scaleFactor,answer*scaleFactor)
                 self.turtle.stamp()
                 self.turtle.pendown()
+            dataSet.append(entryAnswerList)
             self.turtle.penup()
-            time.sleep(0.3)
+            #time.sleep(0.3)
+        print(itemStr)
+        for i in range(len(dataSet)):
+            print(dataSet[i])
             
     def clearScreen(self):
         self.turtle.clear()
@@ -510,16 +903,34 @@ if __name__ == "__main__":
     #for columnNameStr in ["parentsExpectWellMath","parentsThinkMathImportant","friendsLikeMath","friendsDoWellMath","iLookForwardMathClass","iAnxiousMath","iWorryMathMark"]:
     #    surveyDataAnalyzer.columnBreakdown(columnNameStr)
     
-    for columnName in ["iAnxiousMath", "iWorryMathMark"]:
+    """for courseName in ["9MPM","10MPM","11MCR","12MHF","12MDM"]:
+        for str in ["CourseDifficulty","LikeMath"]:
+            surveyDataAnalyzer.columnBreakdown("gr"+courseName+str)"""
+
+    
+    """for columnName in ["iAnxiousMath", "iWorryMathMark"]:
         for gender in ["M","F"]:
             surveyDataAnalyzer.columnBreakdown(columnName, [("gender",gender)])
+        for currentGr in [11,12]:
+            surveyDataAnalyzer.columnBreakdown(columnName, [("currentGrade",currentGr)])"""
+        
+    #surveyDataAnalyzer.testMathAnxiety()
+    
+    #surveyDataAnalyzer.testCourseDiffEnjoymentByGender()
 
-    surveyDataAnalyzer.testProgram()
+    #surveyDataAnalyzer.testStudyHabits()
+    
+    surveyDataAnalyzer.testSubjectiveNorms()
+    
+    surveyDataAnalyzer.columnBreakdownV2()
 
-    for itemStr in ["LikeMath","LikeCourse","CourseDifficulty","WhenStudy","LengthStudy","TimeSpent","Grade"]:
+    """for itemStr in ["LikeMath","LikeCourse","CourseDifficulty","WhenStudy","LengthStudy","TimeSpent","Grade"]:
         surveyDataAnalyzer.yearOnYearAnalysis(itemStr)
         time.sleep(2)
-        surveyDataAnalyzer.clearScreen()
+        surveyDataAnalyzer.clearScreen()"""
+    
+    """for itemStr in ["LikeMath","LikeCourse","CourseDifficulty"]:
+        surveyDataAnalyzer.testYearOnYearVariation(itemStr)"""
                              
     
     """
